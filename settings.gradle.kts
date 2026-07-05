@@ -48,7 +48,7 @@ rootProject.name="sora-editor"
 include(
     ":editor-bom",
     ":editor",
-    ":editor-lsp",
+    //":editor-lsp",
     ":editor-compose",
     ":language-treesitter",
     ":oniguruma-native"
