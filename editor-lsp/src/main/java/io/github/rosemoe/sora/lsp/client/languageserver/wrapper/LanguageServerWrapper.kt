@@ -92,7 +92,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 class LanguageServerWrapper(
-    val serverDefinition: LanguageServerDefinition, val project: LspProject
+    val serverDefinition: LanguageServerDefinition,
+    val project: LspProject
 ) {
     private val TAG = "LanguageServerWrapper"
     val serverName = serverDefinition.name
@@ -132,6 +133,10 @@ class LanguageServerWrapper(
         eventHandler?.listener?.onEventException(eventListener, exception)
     }
 
+    fun getCachedServerCapabilities(): ServerCapabilities? {
+        return effectiveCapabilities ?: initializeResult?.capabilities
+    }
+
     /**
      * Warning: this is a long-running operation
      *
@@ -151,7 +156,7 @@ class LanguageServerWrapper(
             start(true)
 
             initializeFuture?.get(
-                if (capabilitiesAlreadyRequested) 0L else Timeout[Timeouts.INIT].toLong(),
+                if (capabilitiesAlreadyRequested) 0L else Timeout[Timeouts.INIT, serverDefinition].toLong(),
                 TimeUnit.MILLISECONDS
             )
         } catch (_: TimeoutException) {
@@ -159,7 +164,7 @@ class LanguageServerWrapper(
                 Locale.getDefault(),
                 "%s \n is not initialized after %d seconds",
                 serverDefinition.toString(),
-                Timeout[Timeouts.INIT] / 1000
+                Timeout[Timeouts.INIT, serverDefinition] / 1000
             )
             Log.w(TAG, msg)
             serverDefinition.eventListener.onHandlerException(LSPException(msg))
@@ -282,7 +287,7 @@ class LanguageServerWrapper(
         }
     }
 
-    /*
+    /**
      * The shutdown request is sent from the client to the server. It asks the server to shut down, but to not exit \
      * (otherwise the response might not be delivered correctly to the client).
      * Only if the exit flag is true, particular server instance will exit.
@@ -297,7 +302,7 @@ class LanguageServerWrapper(
             try {
                 val shutdown = languageServer?.shutdown()
 
-                shutdown?.get(Timeout[Timeouts.SHUTDOWN].toLong(), TimeUnit.MILLISECONDS)
+                shutdown?.get(Timeout[Timeouts.SHUTDOWN, serverDefinition].toLong(), TimeUnit.MILLISECONDS)
 
                 if (exit && serverDefinition.callExitForLanguageServer()) {
                     languageServer?.exit()
@@ -436,7 +441,7 @@ class LanguageServerWrapper(
             return
         }
 
-        localInitializeFuture.get(Timeout[Timeouts.INIT].toLong(), TimeUnit.MILLISECONDS)
+        localInitializeFuture.get(Timeout[Timeouts.INIT, serverDefinition].toLong(), TimeUnit.MILLISECONDS)
 
         try {
             val syncOptions =
